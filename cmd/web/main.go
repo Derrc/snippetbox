@@ -1,27 +1,71 @@
 package main
 
 import (
-	"log"
+	"database/sql"
+	"flag"
+	"log/slog"
 	"net/http"
+	"os"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
+// configuration settings
+type config struct {
+	addr string
+	dsn string
+}
+
+// application-wide dependencies
+type application struct {
+	logger *slog.Logger
+}
+
 func main() {
-	// creates new servemux and registers handler functions for different URL patterns
-	mux := http.NewServeMux()
+	var cfg config
 
-	// creates file server to serve files in 'static' dir
-	fileServer := http.FileServer(http.Dir("./ui/static/"))
+	// command-line flags
+	flag.StringVar(&cfg.addr, "addr", ":4000", "HTTP network address")
+	flag.StringVar(&cfg.dsn, "dsn", "web:pass@/snippetbox?parseTime=true", "MySQL data source name")
+	flag.Parse();
 
-	mux.Handle("GET /static/", http.StripPrefix("/static/", fileServer))
+	// initialize structured logger
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	mux.HandleFunc("GET /{$}", home)
-	mux.HandleFunc("GET /snippet/view/{id}", snippetView)
-	mux.HandleFunc("GET /snippet/create", snippetCreate)
-	mux.HandleFunc("POST /snippet/create", snippetCreatePost)
+	// open db connection pool
+	db, err := openDB(cfg.dsn)
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
 
-	log.Print("starting server on :4000")
+	defer db.Close()
+
+	// initialize instance of application with our dependencies
+	app := &application{
+		logger: logger,
+	}
+
+	logger.Info("starting server", slog.String("addr", cfg.addr))
 
 	// listens on the passed TCP network address with our servemux
-	err := http.ListenAndServe("localhost:4000", mux)
-	log.Fatal(err)
+	err = http.ListenAndServe("localhost" + cfg.addr, app.routes())
+	logger.Error(err.Error())
+	os.Exit(1)
+}
+
+// returns an sql.DB connection pool
+func openDB(dsn string) (*sql.DB, error) {
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	err = db.Ping()
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
+
+	return db, nil
 }
