@@ -12,9 +12,6 @@ import (
 
 // handler function
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
-	// adds a header 'Server: Go' to the response header map
-	w.Header().Add("Server", "Go")
-
 	snippets, err := app.snippets.Latest()
 	if err != nil {
 		app.serverError(w, r, err)

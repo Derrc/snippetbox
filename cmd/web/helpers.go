@@ -3,9 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"log/slog"
 	"net/http"
-	"runtime/debug"
 	"time"
 )
 
@@ -13,10 +11,9 @@ func (app *application) serverError(w http.ResponseWriter, r *http.Request, err 
 	var (
 		method = r.Method
 		uri = r.URL.RequestURI()
-		trace = string(debug.Stack())
 	)
 
-	app.logger.Error(err.Error(), slog.String("method", method), slog.String("uri", uri), slog.String("trace", trace))
+	app.logger.Error(err.Error(), "method", method, "uri", uri)
 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }
 
