@@ -37,6 +37,9 @@ func (app *application) logRequest(next http.Handler) http.Handler {
 	})
 }
 
+// gracefully shuts down in the event of a panic by setting the 'Connection' header
+// and writing an error response before closing the underyling HTTP connection for the
+// affected goroutine
 func (app *application) recoverPanic(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// create a deferred function (always will be run in the event of a panic)

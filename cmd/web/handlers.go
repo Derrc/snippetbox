@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"snippetbox.derrc/internal/models"
+	"snippetbox.derrc/internal/validator"
 )
 
 // handler function
@@ -49,17 +50,51 @@ func (app *application) snippetView(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) snippetCreate(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Display a form for creating a new snippet..."))
+	data := app.newTemplateData(r)
+	// default form values
+	data.Form = snippetCreateForm{
+		Expires: 365,
+	}
+
+	app.render(w, r, http.StatusOK, "create.tmpl", data)
+}
+
+// struct tags tell decoder what HTML form values to map to what fields
+// based on 'name' attribute
+type snippetCreateForm struct {
+	Title string `form:"title"`
+	Content string `form:"content"`
+	Expires int `form:"expires"`
+	validator.Validator `form:"-"`
 }
 
 func (app *application) snippetCreatePost(w http.ResponseWriter, r *http.Request) {
-	// temp dummy data
-	title := "0 snail"
-	content := "O snail\nClimb Mount Fuji,\nBut slowly, slowly!\n\n– Kobayashi Issa"
-	expires := 7
+	// data and validation errors for form fields
+	var form snippetCreateForm
+	
+	// decode form data
+	err := app.decodePostForm(r, &form)
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
 
+	// form validation
+	form.CheckField(validator.NotBlank(form.Title), "title", "This field cannot be blank");
+	form.CheckField(validator.MaxChars(form.Title, 100), "title", "This field cannot be more than 100 characters long")
+	form.CheckField(validator.NotBlank(form.Content), "content", "This field cannot be blank")
+	form.CheckField(validator.PermittedValue(form.Expires, 1, 7, 365), "expires", "This field must equal 1, 7 or 365")
 
-	id, err := app.snippets.Insert(title, content, expires)
+	if !form.Valid() {
+		// re-display template with form data if there was a validation error
+		data := app.newTemplateData(r)
+		data.Form = form
+		// use 422 status to indicate that there was a validation error
+		app.render(w, r, http.StatusUnprocessableEntity, "create.tmpl", data)
+		return
+	}
+
+	id, err := app.snippets.Insert(form.Title, form.Content, form.Expires)
 	if err != nil {
 		app.serverError(w, r, err)
 		return
