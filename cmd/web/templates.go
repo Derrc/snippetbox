@@ -14,6 +14,8 @@ type templateData struct {
 	Snippets []models.Snippet
 	Form any
 	Flash string
+	IsAuthenticated bool
+	CSRFToken string
 }
 
 // returns a formatted string representation of time.Time object

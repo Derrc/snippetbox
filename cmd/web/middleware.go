@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"net/http"
+
+	"github.com/justinas/nosurf"
 )
 
 // sets HTTP security headers (inline with OWASP guidance)
@@ -54,4 +56,36 @@ func (app *application) recoverPanic(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// redirects user to login page for protected routes
+func (app *application) requireAuthentication(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// if user is not authenticated, redirect them to the login page
+		// don't allow subsequent handlers to execute in middleware chain
+		if !app.isAuthenticated(r) {
+			http.Redirect(w, r, "/user/login", http.StatusSeeOther)
+			return
+		}
+
+		// set 'Cache-Control: no-store' header so pages that require authentication
+		// are not stored in user's local browser cache or other shared cache (i.e. proxy)
+		w.Header().Set("Cache-Control", "no-store")
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+// prevents CSRF attacks by using the double-submit cookie pattern
+func noSurf(next http.Handler) http.Handler {
+	csrfHandler := nosurf.New(next)
+	csrfHandler.SetBaseCookie(http.Cookie{
+		// can't be modified by javascript client-side
+		HttpOnly: true,
+		Path: "/",
+		// only sent to to server with an encrypted request over HTTPS
+		Secure: true,
+	})
+
+	return csrfHandler
 }

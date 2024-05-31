@@ -19,7 +19,7 @@ type SnippetModel struct {
 		DB *sql.DB
 }
 
-// inserts snippet into db
+// inserts snippet into 'snippets' table
 func (m *SnippetModel) Insert(title string, content string, expires int) (int, error) {
 	stmt := `INSERT INTO snippets (title, content, created, expires)
 	VALUES(?, ?, UTC_TIMESTAMP(), DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? DAY))`
