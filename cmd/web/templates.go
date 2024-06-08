@@ -2,10 +2,12 @@ package main
 
 import (
 	"html/template"
+	"io/fs"
 	"path/filepath"
 	"time"
 
 	"snippetbox.derrc/internal/models"
+	"snippetbox.derrc/ui"
 )
 
 type templateData struct {
@@ -32,7 +34,8 @@ func newTemplateCache() (map[string]*template.Template, error) {
 	// initialize map to act as cache
 	cache := map[string]*template.Template{}
 
-	pages, err := filepath.Glob("./ui/html/pages/*.tmpl")
+	// get all matching filepaths from embedded filesystem
+	pages, err := fs.Glob(ui.Files, "./ui/html/pages/*.tmpl")
 	if err != nil {
 		return nil, err
 	}
@@ -40,24 +43,18 @@ func newTemplateCache() (map[string]*template.Template, error) {
 	for _, page := range pages {
 		name := filepath.Base(page);
 
-		// register FuncMap with template set before parsing
-		ts, err := template.New(name).Funcs(functions).ParseFiles("./ui/html/base.tmpl")
+		patterns := []string{
+			"html/base.tmpl",
+			"html/partials/*.tmpl",
+			page,
+		}
+
+		// parse template files that match patterns
+		ts, err := template.New(name).Funcs(functions).ParseFS(ui.Files, patterns...)
 		if err != nil {
 			return nil, err
 		}
 
-		// add partials to base template set
-		ts, err = ts.ParseGlob("./ui/html/partials/*.tmpl")
-		if err != nil {
-			return nil, err
-		}
-
-		// add page to template set
-		ts, err = ts.ParseFiles(page)
-		if err != nil {
-			return nil, err
-		}
-		
 		// cache template set
 		cache[name] = ts;
 	}
