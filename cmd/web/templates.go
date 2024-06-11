@@ -39,7 +39,7 @@ func newTemplateCache() (map[string]*template.Template, error) {
 	cache := map[string]*template.Template{}
 
 	// get all matching filepaths from embedded filesystem
-	pages, err := fs.Glob(ui.Files, "./ui/html/pages/*.tmpl")
+	pages, err := fs.Glob(ui.Files, "html/pages/*.tmpl")
 	if err != nil {
 		return nil, err
 	}

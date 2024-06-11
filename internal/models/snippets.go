@@ -14,7 +14,14 @@ type Snippet struct {
 	Expires time.Time
 }
 
-// snippet model that holds CRUD methods
+// interface for Snippet CRUD methods
+type SnippetModelInterface interface {
+	Insert(title string, content string, expires int) (int, error)
+	Get(id int) (Snippet, error)
+	Latest() ([]Snippet, error)
+}
+
+// implements SnippetModelInterface
 type SnippetModel struct {
 		DB *sql.DB
 }
